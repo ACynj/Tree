@@ -1,152 +1,165 @@
-//Prim算法
 #include<stdio.h>
 #include<stdlib.h>
+/*图的建立*/
 typedef struct enode* Edge;
-typedef struct graph* MGraph;
 typedef struct node* Node;
 typedef struct lgraph* LGraph;
 struct enode {
-	int v1, v2;
-	int weight;
-};
-struct graph {
-	int nv, ne;
-	int G[1000][1000];
+	int v1, v2, weight;
 };
 struct node {
 	int adjl;
-	Node Next;
 	int weight;
+	Node Next;
 };
-typedef struct sndoe {
+typedef struct snode {
 	Node Fristnode;
 }adjlist[1000];
 struct lgraph {
 	int nv, ne;
 	adjlist G;
-};
-LGraph creatlGraph(int nv) {
-	LGraph MST = (LGraph)malloc(sizeof(struct lgraph));
-	MST->nv = nv;
-	MST->ne = 0;
-	for (int i = 0; i < MST->nv; i++) {
-		MST->G[i].Fristnode = NULL;
-	}
-	return MST;
-
+ };
+/*图的建立结束*/
+void swap(struct enode *a,struct enode *b) {
+	struct enode t = *a;
+	*a= *b;
+	*b = t;
 }
-MGraph creatGraph(int n)
-{
-	MGraph Graph= (MGraph)malloc(sizeof(struct graph));
+
+/*并查集的建立*/
+typedef int setType[1000];
+void setv(setType s,int n){
+	int x;
+	for (x = 0; x < n; x++) {
+		s[x] = -1;
+	}
+}
+int  find(setType s, int x) {
+	if (s[x] < 0)
+		return x;
+	else return s[x] = find(s, s[x]);
+}
+void Union(setType s,int root1,int root2) {
+	if (s[root2] < s[root1])/*root2集合大小比较大*/
+	{
+		s[root2] += s[root1];
+		s[root1] = root2;
+	}
+	else {
+		s[root1] += s[root2];
+		s[root2] = root1;
+	}
+}
+bool checkis(setType s,int x1,int x2) {/*检查是否同一个集合*/
+	int root1 = find(s, x1);
+	int root2 = find(s, x2);
+	if (root1 == root2) {
+		return false;
+	}
+	else {
+		Union(s, root1, root2);
+		return true;
+	}
+}/*并查集定义结束*/
+LGraph creatgraph(int n) {
+	LGraph Graph = (LGraph)malloc(sizeof(struct lgraph));
 	Graph->nv = n;
+	Graph->ne = 0;
 	for (int i = 0; i < Graph->nv; i++) {
-		for (int j = 0; j < Graph->nv; j++) {
-			Graph->G[i][j] = 10000;
-		}
+		Graph->G[i].Fristnode = NULL;
 	}
 	return Graph;
 }
-MGraph buildGraph() {
-	int nv,ne;
-	MGraph Graph;
-	scanf_s("%d %d", &nv, &ne);
-	Graph = creatGraph(nv);
-	Graph->ne = ne;
-	if (Graph->ne != 0) {
+void insert(LGraph Graph,Edge E) {
+	Node newnode = (Node)malloc(sizeof(struct node));
+	newnode->adjl = E->v2;
+	newnode->weight = E->weight;
+	newnode->Next = Graph->G[E->v1].Fristnode;
+	Graph->G[E->v1].Fristnode = newnode;
+}
+LGraph buildgraph() {
+	int n,e;
+	LGraph Graph;
+	scanf_s("%d %d", &n, &e);
+	Graph = creatgraph(n);
+	if (e != 0) {
+		Graph->ne = e;
 		for (int i = 0; i < Graph->ne; i++) {
 			Edge E = (Edge)malloc(sizeof(struct enode));
 			scanf_s("%d %d %d", &E->v1, &E->v2, &E->weight);
-			Graph->G[E->v1][E->v2] = E->weight;
-			Graph->G[E->v2][E->v1] = E->weight;
+			insert(Graph, E);
 		}
+
+
 	}
-   
 	return Graph;
+
 }
-void insert(LGraph MST,Edge E) {
-	Node newnode = (Node)malloc(sizeof(struct node));
-	newnode->weight = E->weight;
-	newnode->adjl = E->v2;
-	newnode->Next = MST->G[E->v1].Fristnode;
-	MST->G[E->v1].Fristnode = newnode;
-}
-int findMinDist(MGraph Graph, int dist[]) {
-	/*返回未被收录顶点中dist的最小值*/
-	int minv, mindist=10000, v;
-	for (v = 0; v < Graph->nv; v++) {
-		if (dist[v] != 0 && dist[v] < mindist) {
-			mindist = dist[v];
-			minv = v;
+/*最小堆定义*/
+void percdown(Edge Eset,int p,int n) {
+	int parent, child;
+	struct enode x= Eset[p];
+	for(parent=p;parent*2+1<n;parent=child){
+		child = parent * 2 + 1;
+		if (child != n-1 && Eset[child].weight > Eset[child + 1].weight) {
+			child++;
 		}
-
-
+		if (x.weight > Eset[child].weight) {
+			Eset[parent] = Eset[child];
+		}
+		else break;
 	}
-	if (mindist < 10000) {
-		return minv;
-	}
-	else return -1;
+	Eset[parent] = x;
 }
-int Prim(MGraph Graph,LGraph MST) {
-	int dist[1000], parent[1000], v, w,vcount, totalweight;
-	Edge E;
-	for (v = 0; v < Graph->nv; v++) {
-		dist[v] = Graph->G[0][v];
-		parent[v] = 0;
-	}
-	totalweight = 0;
-	vcount = 0;
-	MST = creatlGraph(Graph->nv);
-	E = (Edge)malloc(sizeof(struct enode));
-	dist[0] = 0;//收录V0
-	vcount++;
-	parent[0] = -1;//以V0为根节点
-	
-	while (1) {
-		v = findMinDist(Graph, dist);
-		if (v == -1)
-			break;
-		
-		E->v1 = parent[v];
-		E->v2 = v;
-		E->weight = dist[v];
-		insert(MST, E);
-		totalweight += dist[v];
-		dist[v] = 0;
-		vcount++;
-		for (w = 0; w < Graph->nv; w++) 
-			if (dist[w] != 0 && Graph->G[v][w] < 10000) {                                       
-				if (Graph->G[v][w] < dist[w]) {
-					dist[w] = Graph->G[v][w];
-					parent[w] = v;
-				}
+/*初始化边数组*/
+void sete(Edge Eset, LGraph Graph) {
+	int ecount = 0;
+	for (int i = 0; i < Graph->nv; i++) {
+		for (Node w = Graph->G[i].Fristnode; w; w = w->Next) {
+			if (i < w->adjl) {
+				Eset[ecount].v1 = i;
+				Eset[ecount].v2 = w->adjl;
+				Eset[ecount++].weight = w->weight;
 			}
-	}
-	Node x;
-	for (int i = 0; i < MST->nv; i++) {
-		x = MST->G[i].Fristnode;
-		printf("%d: ", i);
-		while (x) {
-			printf("@%d ", x->adjl);
-			x = x->Next;
 		}
 	}
-	if (vcount < Graph->nv)totalweight = -1;
-	return totalweight;
-	
+	for (ecount = Graph->nv/ 2 - 1; ecount >= 0; ecount--)
+		percdown(Eset, ecount, Graph->ne);
+
+}
+int getedge(Edge Eset,int n) {
+	swap(&Eset[0], &Eset[n - 1]);
+	percdown(Eset, 0, n-1);
+	return n - 1;
+}
+int Kruskal(LGraph Graph,LGraph MST) {
+	setType Vset;/*顶点集合*/
+	Edge Eset=(Edge)malloc(sizeof(struct enode)*Graph->ne);/*编辑边数组*/
+	int ecount, totalweight;
+	 setv(Vset,Graph->nv);
+	 sete(Eset,Graph);
+	 MST = creatgraph(Graph->nv);
+	 ecount = 0; totalweight = 0;
+	 int nextedge = Graph->ne;
+	 while (ecount < Graph->nv - 1) {
+		 nextedge = getedge(Eset, nextedge);
+		 if (nextedge < 0)break;
+		 if (checkis(Vset, Eset[nextedge].v1, Eset[nextedge].v2)) {
+			 insert(MST, Eset + nextedge);
+			 totalweight += Eset[nextedge].weight;
+			 // printf("$%d @%d\n", Eset[nextedge].weight,nextedge);
+			 ecount++;
+		 }
+	 }
+	 if (ecount < Graph->nv-1)
+		 totalweight = -1;
+	 return totalweight;
+
 }
 int main() {
-	MGraph Graph = buildGraph();
-	LGraph MST = (LGraph)malloc(sizeof(struct lgraph));
-	Node w;
-	int x = Prim(Graph, MST);
-	/*for (int i = 0; i < Graph->nv; i++) {
-		for (int j = 0; j < Graph->nv; j++) {
-			printf("%d ", Graph->G[i][j]);
-		}
-		printf("\n");
-	}
-	*/
-	
-	printf("%d\n", x);
-
+	LGraph Graph = buildgraph();
+	LGraph MST=(LGraph)malloc(sizeof(struct lgraph));
+	int totalweight;
+	totalweight = Kruskal(Graph,MST);
+	printf("%d\n", totalweight);
 }
